@@ -4,8 +4,8 @@ from scipy.io import wavfile
 
 #CONFIGURATION
 sample_rate = 44100  # Sample rate in Hz
-seconds = 5  # Duration of recording in seconds
-filename = "patient_visit.wav"  # Output filename
+seconds = 70  # Duration of recording in seconds
+filename = "patient_visit_1.wav"  # Output filename
 
 #Record audio
 print("Recording started... Speak into the microphone!")
