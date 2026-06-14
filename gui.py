@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import messagebox
 import record_audio
 import nlp_parser
+from test_ai import fix_transcript_typos
 
 class MedicalDictationApp:
     def __init__(self, root, pipeline_callback):
@@ -185,7 +186,11 @@ class MedicalDictationApp:
     def run_background_text_pipeline(self, input_text):
         try:
             hpi_note = nlp_parser.generate_hpi(input_text)
-            self.root.after(0, self.update_ui_outputs, input_text, hpi_note)
+            cleaned_text = fix_transcript_typos(input_text)
+            if cleaned_text.startswith("Error:"):
+                cleaned_text = input_text
+
+            self.root.after(0, self.update_ui_outputs, cleaned_text, hpi_note)
         except Exception as e:
             self.root.after(0, messagebox.showerror, "Error", f"Text processing failed: {str(e)}")
             self.root.after(0, self.reset_gui_state)

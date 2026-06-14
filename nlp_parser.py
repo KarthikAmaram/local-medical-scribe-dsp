@@ -1,6 +1,7 @@
 import spacy
 from spacy.matcher import Matcher
 import jellyfish
+from test_ai import fix_transcript_typos
 
 nlp = spacy.load("en_core_web_sm")
 
@@ -116,7 +117,11 @@ def extract_symptom_context(sent_span, start_tok_idx, end_tok_idx):
     return profile
 
 def generate_hpi(transcribed_text):
-    cleaned_text = clean_input_text(transcribed_text)
+    cleaned_transcript = fix_transcript_typos(transcribed_text)
+    if cleaned_transcript.startswith("Error:"):
+        cleaned_transcript = transcribed_text
+        
+    cleaned_text = clean_input_text(cleaned_transcript)
     doc = nlp(cleaned_text)
     
     matcher = Matcher(nlp.vocab)
