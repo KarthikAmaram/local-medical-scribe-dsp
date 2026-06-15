@@ -151,6 +151,7 @@ class MedicalDictationApp:
             self.record_btn.config(text="Stop & Process", bg="#e74c3c", activebackground="#c0392b")
             self.process_text_btn.config(state="disabled")
             self.status_label.config(text="Status: Recording... Speak now!", fg="#e74c3c")
+            self.manual_input_box.delete("1.0", tk.END)
             self.transcription_box.delete("1.0", tk.END)
             self.hpi_box.delete("1.0", tk.END)
             
@@ -163,12 +164,17 @@ class MedicalDictationApp:
 
     def run_background_pipeline(self):
         try:
-            transcribed_text, hpi_note = self.pipeline_callback(duration=70)
-            self.root.after(0, self.update_ui_outputs, transcribed_text, hpi_note)
+            transcribed_text, _ = self.pipeline_callback(duration=70)
+            cleaned_text = fix_transcript_typos(transcribed_text)
+            if cleaned_text.startswith("Error:"):
+                cleaned_text = transcribed_text
+            
+            hpi_note = nlp_parser.generate_hpi(cleaned_text)
+            self.root.after(0, self.update_voice_ui_outputs, transcribed_text, cleaned_text, hpi_note)
         except Exception as e:
             self.root.after(0, messagebox.showerror, "Error", f"Pipeline failed: {str(e)}")
             self.root.after(0, self.reset_gui_state)
-
+    
     def process_manual_text(self):
         raw_text = self.manual_input_box.get("1.0", tk.END).strip()
         if not raw_text:
@@ -185,15 +191,21 @@ class MedicalDictationApp:
 
     def run_background_text_pipeline(self, input_text):
         try:
-            hpi_note = nlp_parser.generate_hpi(input_text)
             cleaned_text = fix_transcript_typos(input_text)
             if cleaned_text.startswith("Error:"):
                 cleaned_text = input_text
 
+            hpi_note = nlp_parser.generate_hpi(cleaned_text)
             self.root.after(0, self.update_ui_outputs, cleaned_text, hpi_note)
         except Exception as e:
             self.root.after(0, messagebox.showerror, "Error", f"Text processing failed: {str(e)}")
             self.root.after(0, self.reset_gui_state)
+
+    def update_voice_ui_outputs(self, raw_text, cleaned_text, note):
+        self.manual_input_box.insert(tk.END, raw_text)
+        self.transcription_box.insert(tk.END, cleaned_text)
+        self.hpi_box.insert(tk.END, note)
+        self.reset_gui_state()
 
     def update_ui_outputs(self, text, note):
         self.transcription_box.insert(tk.END, text)
