@@ -9,12 +9,12 @@ client = OpenAI(
 def fix_transcript_typos(raw_transcript):
     system_prompt = (
         "You are a strict clinical spelling and typo correction utility. Your only job is to fix literal spelling mistakes, "
-        "run-on words, and microphone phonetic errors (e.g., convert 'coff' to 'cough', or 'short breath/breaths' to 'shortness of breath').\n\n"
-        "CRITICAL BOUNDARIES:\n"
-        "1. STRICT LOWERCASE CASING: Retain standard sentence capitalization (capitalize the first letter of sentences and proper nouns). "
-        "Do NOT randomly capitalize letters within a word or at the end of a word (e.g., 'cough' must never be written as 'cougH').\n"
-        "2. NO LINGUISTIC REWRITING: Do not alter helper verbs, pronouns, or negation structures. Keep conversational patterns exactly as spoken.\n"
-        "3. Output ONLY the clean text string. No conversational notes, commentary, or explanation."
+        "run-on words, and microphone phonetic errors (e.g., convert 'coff' to 'cough').\n\n"
+        "UNIVERSAL CORRECTION PROTOCOLS:\n"
+        "1. PHONETIC CONTEXT MATCHING: If a word is mangled or unrecognized, analyze its syllable sounds alongside surrounding clinical indicators (e.g., 'weekly', 'injection', 'mg', 'blood sugar'). You MUST map the unknown word to a medication that matches BOTH the phonetic sound AND the clinical context. Never swap a phonetically distant word just because it is a more common drug (e.g., do not replace a word sounding like 'mocharo' with 'metformin' if the text says 'injection').\n"
+        "2. PRESERVE UNKNOWN MEDICAL TERMS: If an unrecognized word cannot be reliably matched phonetically to a known clinical term, leave the misspelled word EXACTLY as it was transcribed. Do NOT guess generic English words (like converting 'Moujaro' to 'Mystery') or substitute different medical conditions.\n"
+        "3. CONVERT WORD NUMBERS: Convert any spelled-out numbers into standard digits.\n"
+        "4. Output ONLY the clean text string. No conversational notes, commentary, or explanation."
     )
     try:
         response = client.chat.completions.create(
@@ -31,12 +31,13 @@ def fix_transcript_typos(raw_transcript):
 
 def generate_hpi_prose_from_data(extracted_data):
     system_prompt = (
-        "You are a strict clinical prose generator. Your only job is to convert structured JSON medical data into a professional History of Present Illness (HPI) paragraph.\n\n"
+        "You are a strict clinical prose generator. Your job is to format the provided clinical text stream into a clean, concise medical narrative.\n\n"
         "CRITICAL PROTOCOLS:\n"
-        "1. Include EVERY single active symptom, severity, duration, and trigger provided in the active_symptoms payload.\n"
-        "2. MANDATORY NEGATIONS: Look closely at the 'negated_symptoms' array. You MUST explicitly state every denied or absent symptom listed there at the very end of the paragraph (e.g., 'The patient denies any fever.'). Do NOT drop or ignore this list.\n"
-        "3. Use ONLY the facts provided. Do NOT invent, assume, or extrapolate any clinical details.\n"
-        "4. Output ONLY the finalized clinical paragraph without introductions, explanations, or notes."
+        "1. PRESERVE SHORTHAND: Do NOT expand medical abbreviations or symbols back into full words. You MUST retain tokens like 'Pt', 'f/u', 'DM2', 'c/o', 'UTD', and '2x' exactly as they appear in the data.\n"
+        "2. CONCISE STYLE: Write in short, direct clinical sentences or distinct fragmented blocks. Avoid conversational transitions or fluff.\n"
+        "3. STRICTLY NO INTRODUCTIONS/OUTROS: Do NOT include meta-text, conversational introductions, or commentary. Do NOT write phrases like 'Here is the formatted clinical text:', 'Here is the text:', or 'Based on the provided data:'. Start immediately with the medical narrative text.\n"
+        "4. Use ONLY the facts provided. Do NOT invent, assume, or extrapolate any clinical details.\n"
+        "5. Output ONLY the finalized clinical text without introductions, explanations, or notes."
     )
     try:
         response = client.chat.completions.create(
