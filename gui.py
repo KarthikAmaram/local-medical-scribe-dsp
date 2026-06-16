@@ -4,6 +4,7 @@ from tkinter import messagebox
 import record_audio
 import nlp_parser
 from test_ai import fix_transcript_typos
+import transcribe
 
 class MedicalDictationApp:
     def __init__(self, root, pipeline_callback):
@@ -158,7 +159,7 @@ class MedicalDictationApp:
             threading.Thread(target=self.run_background_pipeline, daemon=True).start()
         else:
             self.is_recording = False
-            record_audio.recording_active = False
+            transcribe.stop_pipeline_early()
             self.record_btn.config(state="disabled", bg="#f39c12", text="Processing...")
             self.status_label.config(text="Status: Processing models...", fg="#f39c12")
 

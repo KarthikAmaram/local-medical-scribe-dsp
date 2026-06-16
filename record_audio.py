@@ -1,31 +1,61 @@
 import sounddevice as sd
-import time
+import numpy as np
+from dsp_engine import AudioRingBuffer
 
 recording_active = False
+ring_buffer = None
+sample_rate = 16000
+chunk_size = 512
 
-def record_audio(duration=70):
-    global recording_active
+def _get_shared_device_index():
+    devices = sd.query_devices()
+    
+    for idx, dev in enumerate(devices):
+        if dev["max_input_channels"] > 0:
+            name = dev["name"].lower()
+            if "hyperx" in name and ("mme" in name or "directsound" in name):
+                return idx
+                
+    for idx, dev in enumerate(devices):
+        if "hyperx" in dev["name"].lower() and dev["max_input_channels"] > 0:
+            return idx
+            
+    return sd.default.device[0]
+
+def _audio_callback(indata, frames, time, status):
+    if recording_active and ring_buffer is not None:
+        try:
+            ring_buffer.write(indata[:, 0].astype(np.float32))
+        except OverflowError:
+            pass
+
+def start_recording_stream(duration=70):
+    global recording_active, ring_buffer
+    
+    device_index = _get_shared_device_index()
+    device_info = sd.query_devices(device_index, 'input')
+    max_channels = int(device_info['max_input_channels'])
+    
+    buffer_capacity = sample_rate * (duration + 5)
+    ring_buffer = AudioRingBuffer(capacity=buffer_capacity)
     recording_active = True
     
-    sample_rate = 16000  
-    print("Recording started... Speak into the microphone!")
-    
-    total_samples = int(duration * sample_rate)
-    audio_data = sd.rec(
-        total_samples, 
-        samplerate=sample_rate, 
-        channels=1, 
-        dtype='float32'
+    stream = sd.InputStream(
+        device=device_index,
+        samplerate=sample_rate,
+        channels=max_channels,
+        blocksize=chunk_size,
+        dtype='float32',
+        callback=_audio_callback
     )
     
-    start_time = time.time()
-    while recording_active and (time.time() - start_time) < duration:
-        time.sleep(0.1)
-        
-    elapsed_time = time.time() - start_time
-    recorded_samples = min(int(elapsed_time * sample_rate), total_samples)
-    
-    print("Recording finished.")
-    sd.stop()
-    
-    return audio_data[:recorded_samples].flatten()
+    stream.start()
+    print(f"Real-time shared stream active on device index {device_index}... Speak now!")
+    return stream, ring_buffer
+
+def stop_recording_stream(stream):
+    global recording_active
+    recording_active = False
+    stream.stop()
+    stream.close()
+    print("Recording stream stopped cleanly.")
