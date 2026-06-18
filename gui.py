@@ -3,7 +3,6 @@ import tkinter as tk
 from tkinter import messagebox
 import record_audio
 import nlp_parser
-from test_ai import fix_transcript_typos
 import transcribe
 
 class MedicalDictationApp:
@@ -165,12 +164,8 @@ class MedicalDictationApp:
 
     def run_background_pipeline(self):
         try:
-            transcribed_text, _ = self.pipeline_callback(duration=70)
-            cleaned_text = fix_transcript_typos(transcribed_text)
-            if cleaned_text.startswith("Error:"):
-                cleaned_text = transcribed_text
-            
-            hpi_note = nlp_parser.generate_hpi(cleaned_text)
+            transcribed_text = self.pipeline_callback(duration=70)
+            cleaned_text, hpi_note = nlp_parser.generate_hpi(transcribed_text)
             self.root.after(0, self.update_voice_ui_outputs, transcribed_text, cleaned_text, hpi_note)
         except Exception as e:
             self.root.after(0, messagebox.showerror, "Error", f"Pipeline failed: {str(e)}")
@@ -192,11 +187,7 @@ class MedicalDictationApp:
 
     def run_background_text_pipeline(self, input_text):
         try:
-            cleaned_text = fix_transcript_typos(input_text)
-            if cleaned_text.startswith("Error:"):
-                cleaned_text = input_text
-
-            hpi_note = nlp_parser.generate_hpi(cleaned_text)
+            cleaned_text, hpi_note = nlp_parser.generate_hpi(input_text)
             self.root.after(0, self.update_ui_outputs, cleaned_text, hpi_note)
         except Exception as e:
             self.root.after(0, messagebox.showerror, "Error", f"Text processing failed: {str(e)}")
