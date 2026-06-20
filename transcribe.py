@@ -34,9 +34,12 @@ def run_full_pipeline(duration=70):
         return "No audio captured."
 
     print("Processing audio through Windowed Overlap-Add framing...")
+    t0 = time.time()
     clean_audio = ola_processor.process_stream_chunk(raw_audio, filter_func=None)
+    print(f"[TIMING] OLA processing: {time.time() - t0:.2f}s")
 
     print("Processing cleaned stream through Faster-Whisper...")
+    t0 = time.time()
     segments, info = model.transcribe(
         clean_audio,
         beam_size=1,
@@ -45,5 +48,6 @@ def run_full_pipeline(duration=70):
         initial_prompt="Pt. f/u. DM2. UTD with all screenings and vaccines. c/o. fasting. blood pressure. follow-up."
     )
     transcribed_text = " ".join([segment.text for segment in segments])
+    print(f"[TIMING] Whisper transcribe: {time.time() - t0:.2f}s")
 
     return transcribed_text

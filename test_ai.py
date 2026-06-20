@@ -1,10 +1,31 @@
 import json
+import urllib.request
 from openai import OpenAI  # type: ignore
 
 client = OpenAI(
     base_url="http://localhost:11434/v1",
     api_key="ollama"
 )
+
+KEEP_ALIVE = "30m"
+
+def warm_up_model(model="llama3"):
+    try:
+        payload = json.dumps({
+            "model": model,
+            "prompt": "",
+            "keep_alive": KEEP_ALIVE
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "http://localhost:11434/api/generate",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        urllib.request.urlopen(req, timeout=60)
+        return True
+    except Exception:
+        return False
 
 FEW_SHOT_EXAMPLES = [
     {
@@ -13,18 +34,6 @@ FEW_SHOT_EXAMPLES = [
             {"topic": "Visit reason", "details": "Here for cholesterol and diabetic check."},
             {"topic": "Cholesterol", "details": "Cardiologist increased cholesterol medication dosage."},
             {"topic": "Fasting status", "details": "Was fasting for appointment."}
-        ]
-    },
-    {
-        "text": "Patient is here for check up. Patient is doing well. Last labs not available. UTD with all screenings and vaccines. Pt still has knee pain, did 8 weeks with chiro improved at first but pain returned. Monitors BP at home, highest 144/98, lowest 121/89. Pt also went to sleep doctor for sleep apnea, has machine but machine kept coming off during the night so Pt stopped treatment, does plan to try again.",
-        "topics": [
-            {"topic": "Visit reason", "details": "Here for check up."},
-            {"topic": "General status", "details": "Doing well."},
-            {"topic": "Labs", "details": "Last labs not available."},
-            {"topic": "Screenings/vaccines", "details": "UTD with all screenings and vaccines."},
-            {"topic": "Knee pain", "details": "Still has knee pain. Did 8 weeks of chiro, improved at first but pain returned."},
-            {"topic": "Blood pressure", "details": "Monitors BP at home, highest 144/98, lowest 121/89."},
-            {"topic": "Sleep apnea", "details": "Went to sleep doctor for sleep apnea, has machine but it kept coming off during the night, so Pt stopped treatment. Plans to try again."}
         ]
     },
     {
@@ -51,36 +60,6 @@ FEW_SHOT_EXAMPLES = [
         ]
     },
     {
-        "text": "Patient is here for physical and establish care for her diabetes. Pt moved from Chicago in Sep 2025. Her last labs and physical were done in Jan 2025 and the last labs for diabetic check were done in Jan 2026 in Chicago and recalls her hba1c about 7.1. Her iron level in Jan was 9.5. Her pap was also abnormal and when done the second time it was normal. She has chronic heartburn or stomach issues and was seen by GI in Chicago. She stated she has a gunshot wound to her abdomen which led to a small bowel resection, since then she has GI issues. Her sister has Crohn's disease. She also had a colonoscopy which did not show Crohn's. She has had an EGD and now uses PPI daily most of the time. She stated her FBS has always been >130. She could not tolerate a high dose of Trulicity and never tried Ozempic/Mounjaro. She had gained a lot of weight after coming to Dallas. She stated she doesn't eat much but her activity has been reduced at her current job. She c/o snoring but no sleep issues.",
-        "topics": [
-            {"topic": "Visit reason", "details": "Here for physical and to establish care for diabetes."},
-            {"topic": "History", "details": "Moved from Chicago in Sep 2025."},
-            {"topic": "Labs", "details": "Last labs and physical done Jan 2025. Last diabetic labs done Jan 2026 in Chicago, recalls hba1c about 7.1. Iron level in Jan was 9.5."},
-            {"topic": "Pap smear", "details": "Pap was abnormal, repeat was normal."},
-            {"topic": "GI history", "details": "Chronic heartburn/stomach issues, seen by GI in Chicago. Gunshot wound to abdomen led to small bowel resection, has had GI issues since. Colonoscopy did not show Crohn's. Had EGD, now uses PPI daily most of the time."},
-            {"topic": "Family history", "details": "Sister has Crohn's disease."},
-            {"topic": "Diabetes", "details": "FBS has always been >130. Could not tolerate high dose of Trulicity, never tried Ozempic/Mounjaro."},
-            {"topic": "Weight", "details": "Gained a lot of weight after moving to Dallas. Doesn't eat much but activity reduced at current job."},
-            {"topic": "Sleep", "details": "C/o snoring but no sleep issues."}
-        ]
-    },
-    {
-        "text": "Patient is here for his f/u. He was fasting and is continuing all his medications. He was also diagnosed with skin cancer on the right side of the face and also on the back. He has an f/u with his dermatologist.",
-        "topics": [
-            {"topic": "Visit reason", "details": "Here for f/u."},
-            {"topic": "Fasting status", "details": "Fasting, continuing all medications."},
-            {"topic": "Skin cancer", "details": "Diagnosed with skin cancer on right side of face and on back. Has f/u with dermatologist."}
-        ]
-    },
-    {
-        "text": "Pt is here for her f/u. She was fasting and continuing all her medications. She was diagnosed with Basal cell carcinoma after she found a pimple on the nose, after the procedure she again got a pimple on the left cheek and when checked it was benign. She has f/u appointment with her dermatologist.",
-        "topics": [
-            {"topic": "Visit reason", "details": "Here for f/u."},
-            {"topic": "Fasting status", "details": "Fasting, continuing all medications."},
-            {"topic": "Skin cancer", "details": "Diagnosed with basal cell carcinoma after finding pimple on nose. After procedure, got another pimple on left cheek, checked and was benign. Has f/u appointment with dermatologist."}
-        ]
-    },
-    {
         "text": "Patient is here for immigration physical. Reviewed patient's paperwork. Patient denies any cough, night sweats or weight loss. Patient is not UTD with vaccines. Wife has Hodgkins lymphoma and did bone marrow transplant so he was advised not to take live vaccines.",
         "topics": [
             {"topic": "Visit reason", "details": "Here for immigration physical. Paperwork reviewed."},
@@ -97,19 +76,27 @@ FEW_SHOT_EXAMPLES = [
             {"topic": "Rash", "details": "Complaining of rash on hands and arms."},
             {"topic": "Current treatment", "details": "Taking antibiotics along with other medication given in urgent care."}
         ]
-    },
-    {
-        "text": "Pt is here for f/u on DM2. Pt reports taking metformin 4x per day, only eats once per day. Has not checked fasting glucose since last visit.",
-        "topics": [
-            {"topic": "Visit reason", "details": "Here for f/u on DM2."},
-            {"topic": "Medications", "details": "Taking metformin 4x per day."},
-            {"topic": "Diet", "details": "Only eats once per day."},
-            {"topic": "Glucose monitoring", "details": "Has not checked fasting glucose since last visit."}
-        ]
     }
 ]
 
-def fix_transcript_typos(raw_transcript):
+PREAMBLE_PHRASES = [
+    "Here is the corrected text:",
+    "Here's the corrected text:",
+    "Corrected text:",
+    "Here is the corrected transcript:",
+    "Here's the corrected transcript:",
+    "Corrected transcript:",
+    "Here is the text:",
+    "Here's the text:",
+]
+
+def _strip_preamble(text):
+    for preamble in PREAMBLE_PHRASES:
+        if text.lower().startswith(preamble.lower()):
+            return text[len(preamble):].strip()
+    return text
+
+def _fix_transcript_typos_full_rewrite(raw_transcript):
     system_prompt = (
         "You are a strict clinical spelling and typo correction utility. Your only job is to fix literal spelling mistakes, "
         "run-on words, and microphone phonetic errors (e.g., convert 'coff' to 'cough').\n\n"
@@ -118,8 +105,10 @@ def fix_transcript_typos(raw_transcript):
         "2. PRESERVE UNKNOWN MEDICAL TERMS: If an unrecognized word cannot be reliably matched phonetically to a known clinical term, leave the misspelled word EXACTLY as it was transcribed. Do NOT guess generic English words (like converting 'Moujaro' to 'Mystery') or substitute different medical conditions.\n"
         "2b. KNOWN PHRASE-LEVEL PHONETIC CONFUSIONS: certain common clinical phrases are frequently mis-transcribed as a different but similarly-sounding phrase, most often 'up to date' being heard as 'up today'. If a sentence containing 'up today' is discussing screenings, vaccines, immunizations, or labs, correct it to 'up to date'. Only apply this correction when context clearly supports it; do not alter 'today' when used in its normal sense (e.g., 'patient is here today').\n"
         "3. CONVERT WORD NUMBERS: Convert any spelled-out numbers into standard digits.\n"
-        "4. DO NOT REPHRASE: Do not reorder, rephrase, summarize, or remove any clinical content. Correct spelling and phonetic transcription errors only, word for word.\n"
-        "5. Output ONLY the clean text string. No conversational notes, commentary, or explanation."
+        "4. DO NOT REPHRASE: Do not reorder, rephrase, summarize, or remove any clinical content. This rule applies to every single word. Do NOT substitute one grammatically valid word for another even if the result sounds more natural — for example, do not change 'since' to 'and', 'after' to 'following', 'but' to 'however', or any similar substitution. Only fix clear spelling errors, not style.\n"
+        "5. NEVER SUBSTITUTE DRUG NAMES: This is the most critical rule. If you see any medication name, you must never replace it with a different medication name, even if you think the different name is more common or more familiar. Lisinopril is not interchangeable with LIPITOR. Losartan is not interchangeable with lovastatin. These are completely different drugs. If a medication name looks like it might be a phonetic error, only correct the spelling of that same drug — never substitute a different drug. When in doubt, leave the word exactly as transcribed.\n"
+        "6. NEVER INVENT FACTS: Do not add dates, doses, durations, or any clinical detail not present word-for-word in the input. If the input does not mention a date, your output must not mention a date.\n"
+        "7. Output ONLY the clean text string. No conversational notes, no preamble like 'Here is the corrected text:', no commentary, no explanation. Your entire response must be the corrected transcript and nothing else."
     )
     try:
         response = client.chat.completions.create(
@@ -128,11 +117,90 @@ def fix_transcript_typos(raw_transcript):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": raw_transcript}
             ],
-            temperature=0.0
+            temperature=0.0,
+            extra_body={"keep_alive": KEEP_ALIVE}
         )
-        return response.choices[0].message.content.strip()
+        result = response.choices[0].message.content.strip()
+        return _strip_preamble(result)
     except Exception as e:
         return f"Error: {e}"
+
+def _fix_transcript_typos_diff(raw_transcript):
+    system_prompt = (
+        "You are a strict clinical spelling and typo correction utility. Your only job is to find literal spelling "
+        "mistakes, run-on words, and microphone phonetic errors in the transcript (e.g., 'coff' should become "
+        "'cough'), and report them as a list of corrections rather than rewriting the whole transcript.\n\n"
+        "Respond with a JSON array only, in this exact shape: "
+        '[{"wrong": "exact text as it appears in the transcript", "fixed": "corrected text"}]\n'
+        "If nothing needs correcting, respond with an empty array: []\n\n"
+        "RULES:\n"
+        "1. The 'wrong' field must be copied EXACTLY, character for character, from the input transcript — same "
+        "capitalization, same spacing, same punctuation. This is critical: it will be used for an exact text search.\n"
+        "2. PHONETIC CONTEXT MATCHING: If a word is mangled or unrecognized, analyze its syllable sounds alongside "
+        "surrounding clinical indicators (e.g., 'weekly', 'injection', 'mg', 'blood sugar'). You MUST map the unknown "
+        "word to a medication that matches BOTH the phonetic sound AND the clinical context. Never swap a "
+        "phonetically distant word just because it is a more common drug.\n"
+        "3. PRESERVE UNKNOWN MEDICAL TERMS: If an unrecognized word cannot be reliably matched phonetically to a "
+        "known clinical term, do NOT include it as a correction. Do NOT guess generic English words or substitute "
+        "different medical conditions.\n"
+        "4. KNOWN PHRASE-LEVEL PHONETIC CONFUSIONS: certain common clinical phrases are frequently mis-transcribed "
+        "as a different but similarly-sounding phrase, most often 'up to date' being heard as 'up today'. If a "
+        "sentence containing 'up today' is discussing screenings, vaccines, immunizations, or labs, correct it to "
+        "'up to date'. Only apply this correction when context clearly supports it.\n"
+        "5. CONVERT WORD NUMBERS: Convert any spelled-out numbers into standard digits.\n"
+        "6. DO NOT REPHRASE: Never include a correction that just rewords a phrase to sound more natural — for "
+        "example, do not change 'since' to 'and', 'after' to 'following', 'but' to 'however'. Only include actual "
+        "spelling/phonetic errors, never style changes.\n"
+        "7. NEVER SUBSTITUTE DRUG NAMES: This is the most critical rule. Never propose changing one medication name "
+        "to a different medication name, even if you think the different name is more common. Lisinopril is not "
+        "interchangeable with LIPITOR. Losartan is not interchangeable with lovastatin. If a medication name looks "
+        "like a phonetic error, only correct the spelling of that same drug — never substitute a different drug.\n"
+        "8. NEVER INVENT FACTS: Do not propose any correction that adds a date, dose, duration, or any clinical "
+        "detail not already present word-for-word in the input.\n"
+        "9. Each 'wrong' value must appear in the transcript only once. If the same mistake occurs multiple times, "
+        "list each occurrence as a separate correction with enough surrounding context in 'wrong' to make it unique."
+    )
+    try:
+        response = client.chat.completions.create(
+            model="llama3",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": raw_transcript}
+            ],
+            temperature=0.0,
+            extra_body={"keep_alive": KEEP_ALIVE}
+        )
+        clean_content = response.choices[0].message.content.strip()
+        if clean_content.startswith("```json"):
+            clean_content = clean_content.split("```json")[1].split("```")[0].strip()
+        elif clean_content.startswith("```"):
+            clean_content = clean_content.split("```")[1].split("```")[0].strip()
+        return json.loads(clean_content)
+    except Exception:
+        return None
+
+def _apply_corrections(original_text, corrections):
+    result = original_text
+    for correction in corrections:
+        wrong = correction.get("wrong", "")
+        fixed = correction.get("fixed", "")
+        if not wrong:
+            return None
+        occurrences = result.count(wrong)
+        if occurrences != 1:
+            return None
+        result = result.replace(wrong, fixed, 1)
+    return result
+
+def fix_transcript_typos(raw_transcript):
+    corrections = _fix_transcript_typos_diff(raw_transcript)
+    if corrections is not None:
+        applied = _apply_corrections(raw_transcript, corrections)
+        if applied is not None:
+            print(f"[PATH] fix_transcript_typos: diff ({len(corrections)} correction(s))")
+            return applied
+    print("[PATH] fix_transcript_typos: fallback (full rewrite)")
+    return _fix_transcript_typos_full_rewrite(raw_transcript)
 
 def extract_topics(cleaned_transcript):
     system_prompt = (
@@ -161,7 +229,8 @@ def extract_topics(cleaned_transcript):
         response = client.chat.completions.create(
             model="llama3",
             messages=messages,
-            temperature=0.0
+            temperature=0.0,
+            extra_body={"keep_alive": KEEP_ALIVE}
         )
         clean_content = response.choices[0].message.content.strip()
         if clean_content.startswith("```json"):
@@ -172,7 +241,7 @@ def extract_topics(cleaned_transcript):
     except Exception:
         return [{"topic": "Unparsed transcript", "details": cleaned_transcript}]
 
-def generate_hpi_prose_from_data(extracted_data):
+def generate_hpi_prose_from_data(extracted_data, patient_gender="unspecified"):
     system_prompt = (
         "You are a clinical note prose generator mimicking a specific physician's documentation style. You will be "
         "given a list of topic/detail entries from a single patient visit. Write them as a concise clinical narrative, "
@@ -188,38 +257,67 @@ def generate_hpi_prose_from_data(extracted_data):
         "missing information.\n"
         "6. STRICTLY NO INTRODUCTIONS/OUTROS: Start immediately with the clinical narrative. No meta-text, no phrases "
         "like 'Here is the note:'.\n"
-        "7. Output ONLY the finalized clinical text."
+        "7. Output ONLY the finalized clinical text.\n\n"
+        + _gender_directive(patient_gender)
     )
     messages = [{"role": "system", "content": system_prompt}]
     for ex in FEW_SHOT_EXAMPLES:
         messages.append({"role": "user", "content": json.dumps(ex["topics"])})
         messages.append({"role": "assistant", "content": ex["text"]})
-    messages.append({"role": "user", "content": json.dumps(extracted_data)})
+    prose_input = [{"topic": t.get("topic", ""), "details": t.get("details", "")} for t in extracted_data]
+    messages.append({"role": "user", "content": json.dumps(prose_input)})
 
     try:
         response = client.chat.completions.create(
             model="llama3",
             messages=messages,
-            temperature=0.0
+            temperature=0.0,
+            extra_body={"keep_alive": KEEP_ALIVE}
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
         return f"Error generating HPI prose: {e}"
 
+def _gender_directive(patient_gender):
+    if patient_gender == "female":
+        return "PATIENT GENDER FOR THIS NOTE: female. Use she/her/hers for every pronoun referring to the patient. Never use he/him/his, regardless of what pronouns appear in the earlier examples."
+    if patient_gender == "male":
+        return "PATIENT GENDER FOR THIS NOTE: male. Use he/him/his for every pronoun referring to the patient. Never use she/her/hers, regardless of what pronouns appear in the earlier examples."
+    return "PATIENT GENDER FOR THIS NOTE: unspecified. Do not use any gendered pronoun (he/him/his/she/her/hers). Refer to the patient only as 'Pt'."
+
 def ai_double_check_gaps(extracted_data, cleaned_transcript):
     system_prompt = (
         "You are a data validation agent for clinical topic extraction. Compare the extracted topic list against the "
         "original transcript.\n\n"
+        "The extracted topics are provided as a numbered list (index starting at 0). Do NOT re-output the existing "
+        "topics. Respond with a compact JSON object only, in this exact shape:\n"
+        '{"new_topics": [{"topic": "...", "details": "...", "uncertain": true/false, "reason": "..."}], '
+        '"flagged_indices": [{"index": 0, "reason": "..."}]}\n\n'
         "TASKS:\n"
-        "1. Identify any topic, detail, stated negative finding, or numeric value present in the transcript that is "
-        "missing from the extracted list, and add it as a new entry or append it to an existing matching topic.\n"
-        "2. Do not remove or alter any existing entries.\n"
-        "3. Do not invent information that is not present in the transcript.\n"
-        "4. Keep the same JSON array format: a list of objects with 'topic' and 'details' fields.\n\n"
-        "Output raw JSON array directly. No markdown formatting."
+        "1. NEW TOPICS: If the transcript contains a topic, detail, stated negative finding, or numeric value not "
+        "covered by any existing indexed topic, add it as an entry in 'new_topics'. If nothing is missing, "
+        "'new_topics' must be an empty list.\n"
+        "2. Do not invent information that is not present in the transcript.\n"
+        "3. FLAGGED INDICES: For each EXISTING indexed topic (not new ones), include it in 'flagged_indices' only if "
+        "at least one of these specific conditions applies: (a) a value is vague rather than exact, e.g. 'a little "
+        "high' or 'some improvement', with no actual number given; (b) the transcript uses hedge language about it "
+        "like 'I think', 'maybe', 'not sure', or 'might be'; (c) it conflicts with another statement about the same "
+        "topic; (d) it contains a word that looks like a garbled or unresolved transcription error rather than a "
+        "real clinical term. Do NOT include an index in 'flagged_indices' if none of these apply — most topics will "
+        "not be flagged. Do not flag things just because they are clinically significant; only flag actual ambiguity "
+        "in the wording itself.\n"
+        "4. For each item in 'flagged_indices', 'reason' must be a short plain-English note (under 12 words) of "
+        "exactly what to double check.\n"
+        "5. For each item in 'new_topics', set 'uncertain' to true only under the same conditions as rule 3, with a "
+        "matching 'reason'; otherwise 'uncertain' is false and 'reason' is an empty string.\n\n"
+        "Output ONLY the JSON object described above. No markdown formatting, no commentary."
     )
+    indexed_topics = [
+        {"index": i, "topic": t.get("topic", ""), "details": t.get("details", "")}
+        for i, t in enumerate(extracted_data)
+    ]
     user_payload = {
-        "current_topics": extracted_data,
+        "indexed_topics": indexed_topics,
         "transcript": cleaned_transcript
     }
     try:
@@ -229,13 +327,44 @@ def ai_double_check_gaps(extracted_data, cleaned_transcript):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": json.dumps(user_payload)}
             ],
-            temperature=0.0
+            temperature=0.0,
+            extra_body={"keep_alive": KEEP_ALIVE}
         )
         clean_content = response.choices[0].message.content.strip()
         if clean_content.startswith("```json"):
             clean_content = clean_content.split("```json")[1].split("```")[0].strip()
         elif clean_content.startswith("```"):
             clean_content = clean_content.split("```")[1].split("```")[0].strip()
-        return json.loads(clean_content)
+        result = json.loads(clean_content)
+
+        merged = [dict(t, uncertain=False, reason="") for t in extracted_data]
+
+        for flag in result.get("flagged_indices", []):
+            idx = flag.get("index")
+            if isinstance(idx, int) and 0 <= idx < len(merged):
+                merged[idx]["uncertain"] = True
+                merged[idx]["reason"] = flag.get("reason", "") or "Wording here is ambiguous - double check."
+
+        new_topics = _normalize_flag_fields(result.get("new_topics", []))
+        merged.extend(new_topics)
+
+        normalized = _normalize_flag_fields(merged)
+        if extracted_data and not normalized:
+            return _normalize_flag_fields(extracted_data)
+        return normalized
     except Exception:
-        return extracted_data
+        return _normalize_flag_fields(extracted_data)
+
+def _normalize_flag_fields(topics):
+    normalized = []
+    for entry in topics:
+        if not isinstance(entry, dict):
+            continue
+        uncertain = bool(entry.get("uncertain", False))
+        normalized.append({
+            "topic": entry.get("topic", ""),
+            "details": entry.get("details", ""),
+            "uncertain": uncertain,
+            "reason": entry.get("reason", "") if uncertain else ""
+        })
+    return normalized
