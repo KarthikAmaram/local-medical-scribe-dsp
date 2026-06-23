@@ -4,7 +4,7 @@ from record_audio import start_recording_stream, stop_recording_stream
 from dsp_engine import OverlapAddProcessor
 
 print("Loading high-accuracy Whisper model...")
-model = WhisperModel("base", device="cpu", compute_type="int8", cpu_threads=4)
+model = WhisperModel("small.en", device="cpu", compute_type="int8", cpu_threads=4)
 ola_processor = OverlapAddProcessor(frame_size=1024, overlap=512)
 
 is_recording = False
@@ -45,9 +45,10 @@ def run_full_pipeline(duration=70):
         beam_size=1,
         condition_on_previous_text=False,
         temperature=0.0,
-        initial_prompt="Pt. f/u. DM2. UTD with all screenings and vaccines. c/o. fasting. blood pressure. follow-up."
+        initial_prompt="Patient is here for a follow-up appointment. She has been taking metformin and lisinopril daily. Blood pressure today is well controlled. Fasting glucose this morning was within normal range. Labs today include fasting glucose, HbA1c, BMP, and lipid panel. Patient denies any chest pain, shortness of breath, nausea, or dizziness. Up to date with all vaccines and screenings. We will continue current medications and recheck labs in three months."
     )
     transcribed_text = " ".join([segment.text for segment in segments])
     print(f"[TIMING] Whisper transcribe: {time.time() - t0:.2f}s")
+    print(f"[RAW WHISPER] {transcribed_text}")
 
     return transcribed_text

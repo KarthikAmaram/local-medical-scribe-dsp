@@ -1,5 +1,4 @@
 import json
-import urllib.request
 from openai import OpenAI  # type: ignore
 
 client = OpenAI(
@@ -11,18 +10,13 @@ KEEP_ALIVE = "30m"
 
 def warm_up_model(model="llama3"):
     try:
-        payload = json.dumps({
-            "model": model,
-            "prompt": "",
-            "keep_alive": KEEP_ALIVE
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            "http://localhost:11434/api/generate",
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST"
+        client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": "hi"}],
+            max_tokens=1,
+            temperature=0.0,
+            extra_body={"keep_alive": KEEP_ALIVE}
         )
-        urllib.request.urlopen(req, timeout=60)
         return True
     except Exception:
         return False
@@ -193,14 +187,15 @@ def _apply_corrections(original_text, corrections):
     return result
 
 def fix_transcript_typos(raw_transcript):
-    corrections = _fix_transcript_typos_diff(raw_transcript)
+    normalized = " ".join(raw_transcript.split())
+    corrections = _fix_transcript_typos_diff(normalized)
     if corrections is not None:
-        applied = _apply_corrections(raw_transcript, corrections)
+        applied = _apply_corrections(normalized, corrections)
         if applied is not None:
             print(f"[PATH] fix_transcript_typos: diff ({len(corrections)} correction(s))")
             return applied
     print("[PATH] fix_transcript_typos: fallback (full rewrite)")
-    return _fix_transcript_typos_full_rewrite(raw_transcript)
+    return _fix_transcript_typos_full_rewrite(normalized)
 
 def extract_topics(cleaned_transcript):
     system_prompt = (
