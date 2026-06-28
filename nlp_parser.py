@@ -4,6 +4,8 @@ import time
 import difflib
 from test_ai import fix_transcript_typos, extract_topics, generate_hpi_prose_from_data, ai_double_check_gaps
 
+DEBUG = False
+
 nlp = spacy.load("en_core_web_sm")
 
 MIN_FLAG_MATCH_CHARS = 10
@@ -208,18 +210,28 @@ def normalize_to_shorthand(text):
 
     return text
 
+_VAGUE_TAIL_EXCLUDE = (
+    r'(?!'
+    r'\d'
+    r'|(?:glucose|sodium|potassium|chloride|bicarbonate|creatinine|bun|hemoglobin|hematocrit'
+    r'|hgb|hct|wbc|rbc|plt|tsh|t3|t4|a1c|ldl|hdl|triglycerides|cholesterol'
+    r'|pressure|pulse|rate|temp|temperature|spo2|o2|sat|bmi|weight|height'
+    r'|mg|dl|mmol|mcg|meq|iu|units?|kg|lbs?|cm|mm|bpm)\b'
+    r')'
+)
+
 VAGUE_PATTERNS = [
-    r'a\s+(?:little|bit|tad)\s+\w+',
-    r'kind\s+of\s+\w+',
-    r'sort\s+of\s+\w+',
-    r'somewhat\s+\w+',
-    r'slightly\s+\w+',
+    r'a\s+(?:little|bit|tad)\s+' + _VAGUE_TAIL_EXCLUDE + r'\w+',
+    r'kind\s+of\s+' + _VAGUE_TAIL_EXCLUDE + r'\w+',
+    r'sort\s+of\s+' + _VAGUE_TAIL_EXCLUDE + r'\w+',
+    r'somewhat\s+' + _VAGUE_TAIL_EXCLUDE + r'\w+',
+    r'slightly\s+' + _VAGUE_TAIL_EXCLUDE + r'\w+',
     r'(?:I\s+)?think\s+(?:it\s+(?:is|was|might\s+be)|maybe|perhaps)\b[^.]*',
-    r'maybe\s+\w+',
+    r'maybe\s+' + _VAGUE_TAIL_EXCLUDE + r'\w+',
     r'not\s+sure\s+(?:about|if|whether)[^.]*',
-    r'might\s+be\s+\w+',
-    r'possibly\s+\w+',
-    r'(?:running|been|been\s+running)\s+(?:a\s+little|kind\s+of|sort\s+of|somewhat|slightly)\s+\w+',
+    r'might\s+be\s+' + _VAGUE_TAIL_EXCLUDE + r'\w+',
+    r'possibly\s+' + _VAGUE_TAIL_EXCLUDE + r'\w+',
+    r'(?:running|been|been\s+running)\s+(?:a\s+little|kind\s+of|sort\s+of|somewhat|slightly)\s+' + _VAGUE_TAIL_EXCLUDE + r'\w+',
 ]
 VAGUE_REGEX = re.compile('|'.join(VAGUE_PATTERNS), re.IGNORECASE)
 
@@ -315,7 +327,8 @@ def generate_hpi(transcribed_text):
 
     t0 = time.time()
     cleaned_transcript = fix_transcript_typos(transcribed_text)
-    print(f"[TIMING] fix_transcript_typos: {time.time() - t0:.2f}s")
+    if DEBUG:
+        print(f"[TIMING] fix_transcript_typos: {time.time() - t0:.2f}s")
     if cleaned_transcript.startswith("Error:"):
         cleaned_transcript = transcribed_text
 
@@ -342,14 +355,16 @@ def generate_hpi(transcribed_text):
     try:
         t0 = time.time()
         topics = extract_topics(shorthand_text)
-        print(f"[TIMING] extract_topics: {time.time() - t0:.2f}s")
+        if DEBUG:
+            print(f"[TIMING] extract_topics: {time.time() - t0:.2f}s")
 
         if not topics:
             final_prose = shorthand_text
         else:
             t0 = time.time()
             validated_topics = ai_double_check_gaps(topics, shorthand_text)
-            print(f"[TIMING] ai_double_check_gaps: {time.time() - t0:.2f}s")
+            if DEBUG:
+                print(f"[TIMING] ai_double_check_gaps: {time.time() - t0:.2f}s")
 
             if not validated_topics:
                 validated_topics = topics
@@ -358,7 +373,8 @@ def generate_hpi(transcribed_text):
 
             t0 = time.time()
             final_prose = generate_hpi_prose_from_data(validated_topics, patient_gender)
-            print(f"[TIMING] generate_hpi_prose_from_data: {time.time() - t0:.2f}s")
+            if DEBUG:
+                print(f"[TIMING] generate_hpi_prose_from_data: {time.time() - t0:.2f}s")
     except Exception:
         final_prose = shorthand_text
 
@@ -370,6 +386,7 @@ def generate_hpi(transcribed_text):
     flagged_spans = _locate_flagged_spans(final_prose, validated_topics) if validated_topics else []
     drug_flags = _detect_drug_names(final_prose, transcribed_text)
 
-    print(f"[TIMING] generate_hpi total: {time.time() - pipeline_start:.2f}s")
+    if DEBUG:
+        print(f"[TIMING] generate_hpi total: {time.time() - pipeline_start:.2f}s")
 
     return cleaned_transcript, final_prose, flagged_spans, drug_flags

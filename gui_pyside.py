@@ -206,10 +206,12 @@ class MedicalDictationApp(QMainWindow):
 
     def _build_sidebar(self):
         sidebar = QFrame()
-        sidebar.setFixedWidth(280)
+        sidebar.setMinimumWidth(260)
+        sidebar.setMaximumWidth(340)
+        sidebar.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         sidebar.setStyleSheet(f"background-color: {SIDEBAR_BG}; border-radius: 4px;")
         layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(20, 22, 20, 22)
+        layout.setContentsMargins(14, 22, 14, 22)
         layout.setSpacing(8)
 
         input_label = QLabel("INPUT")
@@ -366,17 +368,26 @@ class MedicalDictationApp(QMainWindow):
         self.status_label.setStyleSheet(f"color: {color};")
         self.status_dot.setStyleSheet(f"color: {color}; font-size: 14px;")
 
+    def _clamp_to_word_boundary(self, plain, start, end):
+        while start > 0 and plain[start - 1].isalnum():
+            start -= 1
+        while end < len(plain) and plain[end].isalnum():
+            end += 1
+        return start, end
+
     def _apply_span_highlights(self, text_edit, spans, bg_color, fg_color=None):
         if not spans:
             return
+        plain = text_edit.toPlainText()
         cursor = QTextCursor(text_edit.document())
         fmt = QTextCharFormat()
         fmt.setBackground(QColor(bg_color))
         if fg_color:
             fmt.setForeground(QColor(fg_color))
         for span in spans:
-            cursor.setPosition(span["start"])
-            cursor.setPosition(span["end"], QTextCursor.MoveMode.KeepAnchor)
+            start, end = self._clamp_to_word_boundary(plain, span["start"], span["end"])
+            cursor.setPosition(start)
+            cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
             cursor.mergeCharFormat(fmt)
 
     def _apply_drug_highlights(self, text_edit, drug_flags):
@@ -399,8 +410,9 @@ class MedicalDictationApp(QMainWindow):
                 idx = plain_lower.find(word_lower, start)
                 if idx == -1:
                     break
-                cursor.setPosition(idx)
-                cursor.setPosition(idx + len(word), QTextCursor.MoveMode.KeepAnchor)
+                s, e = self._clamp_to_word_boundary(plain, idx, idx + len(word))
+                cursor.setPosition(s)
+                cursor.setPosition(e, QTextCursor.MoveMode.KeepAnchor)
                 cursor.mergeCharFormat(fmt)
                 start = idx + len(word)
 

@@ -1,5 +1,48 @@
 import threading
 import numpy as np
+from scipy.signal import butter, sosfilt, sosfilt_zi
+
+SPEECH_LOW_HZ = 300
+SPEECH_HIGH_HZ = 3400
+SAMPLE_RATE = 16000
+FILTER_ORDER = 4
+
+
+class ButterworthBandpassFilter:
+    def __init__(self, low_hz=SPEECH_LOW_HZ, high_hz=SPEECH_HIGH_HZ,
+                 sample_rate=SAMPLE_RATE, order=FILTER_ORDER):
+        self.sample_rate = sample_rate
+        nyquist = sample_rate / 2.0
+        low = low_hz / nyquist
+        high = high_hz / nyquist
+        self.sos = butter(order, [low, high], btype='bandpass', output='sos').astype(np.float64)
+        self.zi = sosfilt_zi(self.sos).astype(np.float64)
+
+    def __call__(self, frame):
+        frame_f64 = frame.astype(np.float64)
+        filtered, self.zi = sosfilt(self.sos, frame_f64, zi=self.zi)
+        return filtered.astype(np.float32)
+
+
+class SpectralAnalyzer:
+    def __init__(self, sample_rate=SAMPLE_RATE):
+        self.sample_rate = sample_rate
+
+    def analyze(self, frame):
+        n = len(frame)
+        spectrum = np.fft.rfft(frame)
+        magnitudes = np.abs(spectrum)
+        with np.errstate(divide='ignore'):
+            db = 20.0 * np.log10(np.maximum(magnitudes, 1e-10))
+        freqs = np.fft.rfftfreq(n, d=1.0 / self.sample_rate)
+        return freqs, db
+
+    def speech_band_db(self, frame, low_hz=SPEECH_LOW_HZ, high_hz=SPEECH_HIGH_HZ):
+        freqs, db = self.analyze(frame)
+        mask = (freqs >= low_hz) & (freqs <= high_hz)
+        if not np.any(mask):
+            return -np.inf
+        return float(np.mean(db[mask]))
 
 class AudioRingBuffer:
     def __init__(self, capacity, dtype=np.float32):

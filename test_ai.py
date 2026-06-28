@@ -1,5 +1,7 @@
 import json
-from openai import OpenAI  # type: ignore
+from openai import OpenAI
+
+DEBUG = False
 
 client = OpenAI(
     base_url="http://localhost:11434/v1",
@@ -175,26 +177,33 @@ def _fix_transcript_typos_diff(raw_transcript):
 
 def _apply_corrections(original_text, corrections):
     result = original_text
+    applied = 0
+    skipped = 0
     for correction in corrections:
         wrong = correction.get("wrong", "")
         fixed = correction.get("fixed", "")
         if not wrong:
-            return None
+            skipped += 1
+            continue
         occurrences = result.count(wrong)
         if occurrences != 1:
-            return None
+            skipped += 1
+            continue
         result = result.replace(wrong, fixed, 1)
-    return result
+        applied += 1
+    return result, applied, skipped
 
 def fix_transcript_typos(raw_transcript):
     normalized = " ".join(raw_transcript.split())
     corrections = _fix_transcript_typos_diff(normalized)
     if corrections is not None:
-        applied = _apply_corrections(normalized, corrections)
-        if applied is not None:
-            print(f"[PATH] fix_transcript_typos: diff ({len(corrections)} correction(s))")
-            return applied
-    print("[PATH] fix_transcript_typos: fallback (full rewrite)")
+        result, applied, skipped = _apply_corrections(normalized, corrections)
+        if applied > 0 or len(corrections) == 0:
+            if DEBUG:
+                print(f"[PATH] fix_transcript_typos: diff ({applied} applied, {skipped} skipped)")
+            return result
+    if DEBUG:
+        print("[PATH] fix_transcript_typos: fallback (full rewrite)")
     return _fix_transcript_typos_full_rewrite(normalized)
 
 def extract_topics(cleaned_transcript):

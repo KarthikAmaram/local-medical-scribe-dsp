@@ -1,11 +1,13 @@
 import time
 from faster_whisper import WhisperModel
 from record_audio import start_recording_stream, stop_recording_stream
-from dsp_engine import OverlapAddProcessor
+from dsp_engine import OverlapAddProcessor, ButterworthBandpassFilter
 
-print("Loading high-accuracy Whisper model...")
+DEBUG = False
+
 model = WhisperModel("small.en", device="cpu", compute_type="int8", cpu_threads=4)
 ola_processor = OverlapAddProcessor(frame_size=1024, overlap=512)
+bandpass_filter = ButterworthBandpassFilter()
 
 is_recording = False
 
@@ -33,12 +35,15 @@ def run_full_pipeline(duration=70):
     if raw_audio is None or len(raw_audio) == 0:
         return "No audio captured."
 
-    print("Processing audio through Windowed Overlap-Add framing...")
+    if DEBUG:
+        print("Processing audio through Windowed Overlap-Add framing...")
     t0 = time.time()
-    clean_audio = ola_processor.process_stream_chunk(raw_audio, filter_func=None)
-    print(f"[TIMING] OLA processing: {time.time() - t0:.2f}s")
+    clean_audio = ola_processor.process_stream_chunk(raw_audio, filter_func=bandpass_filter)
+    if DEBUG:
+        print(f"[TIMING] OLA processing: {time.time() - t0:.2f}s")
 
-    print("Processing cleaned stream through Faster-Whisper...")
+    if DEBUG:
+        print("Processing cleaned stream through Faster-Whisper...")
     t0 = time.time()
     segments, info = model.transcribe(
         clean_audio,
@@ -48,7 +53,8 @@ def run_full_pipeline(duration=70):
         initial_prompt="Patient is here for a follow-up appointment. She has been taking metformin and lisinopril daily. Blood pressure today is well controlled. Fasting glucose this morning was within normal range. Labs today include fasting glucose, HbA1c, BMP, and lipid panel. Patient denies any chest pain, shortness of breath, nausea, or dizziness. Up to date with all vaccines and screenings. We will continue current medications and recheck labs in three months."
     )
     transcribed_text = " ".join([segment.text for segment in segments])
-    print(f"[TIMING] Whisper transcribe: {time.time() - t0:.2f}s")
-    print(f"[RAW WHISPER] {transcribed_text}")
+    if DEBUG:
+        print(f"[TIMING] Whisper transcribe: {time.time() - t0:.2f}s")
+        print(f"[RAW WHISPER] {transcribed_text}")
 
     return transcribed_text
