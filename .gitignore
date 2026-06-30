@@ -1,0 +1,21 @@
+# PyInstaller output
+dist/
+build/
+*.spec.log
+
+# Ollama installer (large binary, not yours to redistribute)
+installer_deps/
+
+# Installer output
+installer_output/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Whisper/HuggingFace model cache
+.cache/
+
+# First-run marker
+.clinical_dictation_assistant/

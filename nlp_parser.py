@@ -6,7 +6,17 @@ from test_ai import fix_transcript_typos, extract_topics, generate_hpi_prose_fro
 
 DEBUG = False
 
-nlp = spacy.load("en_core_web_sm")
+import sys
+import os
+
+def _load_spacy_model():
+    import spacy
+    if getattr(sys, 'frozen', False):
+        model_path = os.path.join(sys._MEIPASS, 'en_core_web_sm')
+        return spacy.load(model_path)
+    return spacy.load('en_core_web_sm')
+
+nlp = _load_spacy_model()
 
 MIN_FLAG_MATCH_CHARS = 10
 
@@ -119,7 +129,7 @@ def _detect_drug_names(text, original_transcript):
 
         if is_suffix_match and not is_known_name:
             preceding_text = text[:match.start()]
-            preceding_match = re.search(r'([A-Za-z][a-zA-Z0-9-]{2,})\s+$', preceding_text)
+            preceding_match = re.search(r'([A-Za-z][a-zA-Z0-9-]{2,}),?\s+$', preceding_text)
             if preceding_match:
                 preceding_word = preceding_match.group(1)
                 if preceding_word.lower() not in MULTIWORD_STOPWORDS:
@@ -178,6 +188,8 @@ WHISPER_PHONETIC_CORRECTIONS = [
     (r'\bup\s+today\b(?=\s+with)', 'up to date'),
     (r'\blevo\s+dioroxide\b', 'levothyroxine'),
     (r'\blevo\s+thyroxide\b', 'levothyroxine'),
+    (r'\btorvus,?\s+statin\b', 'atorvastatin'),
+    (r'\btorvis,?\s+statin\b', 'atorvastatin'),
 ]
 
 def clean_input_text(text):
