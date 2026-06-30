@@ -2,24 +2,14 @@ import sounddevice as sd
 import numpy as np
 from dsp_engine import AudioRingBuffer
 
+DEBUG = False
+
 recording_active = False
 ring_buffer = None
 sample_rate = 16000
 chunk_size = 512
 
 def _get_shared_device_index():
-    devices = sd.query_devices()
-    
-    for idx, dev in enumerate(devices):
-        if dev["max_input_channels"] > 0:
-            name = dev["name"].lower()
-            if "hyperx" in name and ("mme" in name or "directsound" in name):
-                return idx
-                
-    for idx, dev in enumerate(devices):
-        if "hyperx" in dev["name"].lower() and dev["max_input_channels"] > 0:
-            return idx
-            
     return sd.default.device[0]
 
 def _audio_callback(indata, frames, time, status):
@@ -50,7 +40,8 @@ def start_recording_stream(duration=70):
     )
     
     stream.start()
-    print(f"Real-time shared stream active on device index {device_index}... Speak now!")
+    if DEBUG:
+        print(f"Real-time shared stream active on device index {device_index}... Speak now!")
     return stream, ring_buffer
 
 def stop_recording_stream(stream):
@@ -58,4 +49,5 @@ def stop_recording_stream(stream):
     recording_active = False
     stream.stop()
     stream.close()
-    print("Recording stream stopped cleanly.")
+    if DEBUG:
+        print("Recording stream stopped cleanly.")

@@ -176,6 +176,8 @@ WHISPER_PHONETIC_CORRECTIONS = [
     (r'\brecheck\s+lives\b', 'recheck labs'),
     (r'\bcheck\s+lives\b', 'check labs'),
     (r'\bup\s+today\b(?=\s+with)', 'up to date'),
+    (r'\blevo\s+dioroxide\b', 'levothyroxine'),
+    (r'\blevo\s+thyroxide\b', 'levothyroxine'),
 ]
 
 def clean_input_text(text):
@@ -263,8 +265,9 @@ def _locate_flagged_spans(final_prose, validated_topics):
         else:
             matcher = difflib.SequenceMatcher(None, prose_lower, details.lower(), autojunk=False)
             match = matcher.find_longest_match(0, len(prose_lower), 0, len(details))
-            required_len = min(MIN_FLAG_MATCH_CHARS, max(6, int(len(details) * 0.3)))
-            if match.size >= required_len:
+            coverage = match.size / max(len(details), 1)
+            matched_text = prose_lower[match.a:match.a + match.size].strip()
+            if match.size >= MIN_FLAG_MATCH_CHARS and coverage >= 0.6:
                 spans.append({
                     "start": match.a,
                     "end": match.a + match.size,
@@ -384,7 +387,7 @@ def generate_hpi(transcribed_text):
         final_prose = final_prose.replace(f" {punct}", punct)
 
     flagged_spans = _locate_flagged_spans(final_prose, validated_topics) if validated_topics else []
-    drug_flags = _detect_drug_names(final_prose, transcribed_text)
+    drug_flags = _detect_drug_names(final_prose, cleaned_transcript)
 
     if DEBUG:
         print(f"[TIMING] generate_hpi total: {time.time() - pipeline_start:.2f}s")

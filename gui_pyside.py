@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QTextEdit, QFrame, QSizePolicy, QMessageBox
 )
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from PySide6.QtGui import QTextCursor, QTextCharFormat, QColor, QFont
 
 import nlp_parser
@@ -508,6 +508,12 @@ class MedicalDictationApp(QMainWindow):
         hpi_text = self.hpi_box.toPlainText().strip()
         if hpi_text:
             QApplication.clipboard().setText(hpi_text)
-            QMessageBox.information(self, "Success", "HPI Note copied to clipboard!")
+            self.copy_btn.setText("Copied!")
+            self.copy_btn.setStyleSheet(_button_style(ACCENT_VOICE, ACCENT_VOICE_DARK))
+            QTimer.singleShot(1500, self._reset_copy_button)
         else:
             QMessageBox.warning(self, "Warning", "Nothing to copy!")
+
+    def _reset_copy_button(self):
+        self.copy_btn.setText("Copy HPI to Clipboard")
+        self.copy_btn.setStyleSheet(_button_style(ACCENT_COPY, ACCENT_COPY_DARK))

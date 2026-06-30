@@ -50,7 +50,7 @@ def run_full_pipeline(duration=70):
         beam_size=1,
         condition_on_previous_text=False,
         temperature=0.0,
-        initial_prompt="Patient is here for a follow-up appointment. She has been taking metformin and lisinopril daily. Blood pressure today is well controlled. Fasting glucose this morning was within normal range. Labs today include fasting glucose, HbA1c, BMP, and lipid panel. Patient denies any chest pain, shortness of breath, nausea, or dizziness. Up to date with all vaccines and screenings. We will continue current medications and recheck labs in three months."
+        initial_prompt="Patient is here for a clinic visit. Physician is discussing the reason for the visit, current symptoms, relevant medical history, and any updates since the last appointment. Patient reports on how they have been feeling and denies any concerning symptoms. Physician notes any positive or negative findings. Plan includes follow-up on labs, screenings, and any changes to the care plan."
     )
     transcribed_text = " ".join([segment.text for segment in segments])
     if DEBUG:

@@ -289,6 +289,19 @@ def _gender_directive(patient_gender):
         return "PATIENT GENDER FOR THIS NOTE: male. Use he/him/his for every pronoun referring to the patient. Never use she/her/hers, regardless of what pronouns appear in the earlier examples."
     return "PATIENT GENDER FOR THIS NOTE: unspecified. Do not use any gendered pronoun (he/him/his/she/her/hers). Refer to the patient only as 'Pt'."
 
+_HEDGE_MARKERS = (
+    "a little", "a bit", "a tad", "kind of", "sort of", "somewhat", "slightly",
+    "i think", "maybe", "perhaps", "not sure", "unsure", "might be", "possibly",
+    "some improvement", "some worsening", "running a little", "running high",
+    "running low", "running somewhat",
+)
+
+def _has_genuine_ambiguity(details):
+    if not details:
+        return False
+    text = details.lower()
+    return any(marker in text for marker in _HEDGE_MARKERS)
+
 def ai_double_check_gaps(extracted_data, cleaned_transcript):
     system_prompt = (
         "You are a data validation agent for clinical topic extraction. Compare the extracted topic list against the "
@@ -310,6 +323,11 @@ def ai_double_check_gaps(extracted_data, cleaned_transcript):
         "real clinical term. Do NOT include an index in 'flagged_indices' if none of these apply — most topics will "
         "not be flagged. Do not flag things just because they are clinically significant; only flag actual ambiguity "
         "in the wording itself.\n"
+        "EXAMPLE — do NOT flag: topic 'Medications', details 'taking metformin and glipizide as prescribed'. This is "
+        "a plain factual statement with no hedge language and no vague value, so it must NOT appear in "
+        "'flagged_indices' even though medication adherence is clinically important.\n"
+        "EXAMPLE — DO flag: topic 'Blood sugar', details 'running a little high in the mornings'. This uses a vague "
+        "value ('a little high') with no exact number, so it belongs in 'flagged_indices'.\n"
         "4. For each item in 'flagged_indices', 'reason' must be a short plain-English note (under 12 words) of "
         "exactly what to double check.\n"
         "5. For each item in 'new_topics', set 'uncertain' to true only under the same conditions as rule 3, with a "
@@ -364,10 +382,11 @@ def _normalize_flag_fields(topics):
     for entry in topics:
         if not isinstance(entry, dict):
             continue
-        uncertain = bool(entry.get("uncertain", False))
+        details = entry.get("details", "")
+        uncertain = bool(entry.get("uncertain", False)) and _has_genuine_ambiguity(details)
         normalized.append({
             "topic": entry.get("topic", ""),
-            "details": entry.get("details", ""),
+            "details": details,
             "uncertain": uncertain,
             "reason": entry.get("reason", "") if uncertain else ""
         })
